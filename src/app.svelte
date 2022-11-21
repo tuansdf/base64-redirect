@@ -3,6 +3,9 @@
   import { onMount } from "svelte";
 
   let text = "";
+  let error = "";
+
+  const ERROR = "Not a link";
 
   // check a url is valid
   const isValidUrl = (text) => {
@@ -15,8 +18,12 @@
   };
 
   onMount(() => {
-    // get whatever url or base64
-    const slug = window.location.pathname.slice(1);
+    // a: slug, z: redirect
+    const params = new URLSearchParams(window.location.search);
+
+    // get url or base64
+    const slug = params.get("a") || window.location.pathname.slice(1);
+    const redirect = !params.get("z");
 
     // if it is a url, encode
     if (isValidUrl(slug)) {
@@ -27,10 +34,22 @@
     else if (Base64.isValid(slug)) {
       const decoded = Base64.decode(slug);
       if (isValidUrl(decoded)) {
-        window.location.href = decoded;
+        if (redirect) {
+          window.location.href = decoded;
+        } else {
+          text = decoded;
+        }
+      } else {
+        error = ERROR;
       }
+    } else {
+      error = ERROR;
     }
   });
 </script>
 
-<pre>{text}</pre>
+{#if error}
+  <p>{error}</p>
+{:else if text}
+  <a href={text}>{text}</a>
+{/if}
