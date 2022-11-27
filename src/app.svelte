@@ -1,54 +1,75 @@
 <script>
-  import { Base64 } from "js-base64";
   import { onMount } from "svelte";
+  import { toBase64, toLink } from "./utils";
 
+  let index = false;
   let text = "";
-  let error = "";
+  let linkInput = "";
 
-  const ERROR = "Not a link";
+  let isCopied = false;
+  let isError = false;
 
-  // check a url is valid
-  const isValidUrl = (text) => {
-    try {
-      new URL(text);
-    } catch (e) {
-      return false;
-    }
-    return true;
+  let inputTimeout = null;
+  let copyTimeout = null;
+
+  $: {
+    clearTimeout(inputTimeout);
+    inputTimeout = setTimeout(() => {
+      const base64 = toBase64(linkInput);
+      if (base64) text = window.location.origin + "/" + base64;
+    }, 200);
+  }
+
+  const onCopy = () => {
+    navigator.clipboard.writeText(text);
+    isCopied = true;
+    clearTimeout(copyTimeout);
+    copyTimeout = setTimeout(() => (isCopied = false), 500);
   };
 
   onMount(() => {
-    const params = new URLSearchParams(window.location.search);
+    const link = window.location.search.slice(1);
+    const base64 = window.location.pathname.slice(1);
 
-    // get url or base64
-    const slug =
-      window.location.pathname.slice(1) || window.location.search.slice(1);
-    const redirect = params.get("redirect") !== "0";
-
-    // if it is a url, encode
-    if (isValidUrl(slug)) {
-      const encoded = Base64.encode(slug, true);
-      text = window.location.origin + "/" + encoded;
+    if (!base64 && !link) {
+      index = true;
       return;
     }
-    // if it is a base64, decode
-    else if (Base64.isValid(slug)) {
-      const decoded = encodeURI(Base64.decode(slug));
-      if (isValidUrl(decoded)) {
-        if (redirect) {
-          window.location.href = decoded;
-        } else {
-          text = decoded;
-        }
-        return;
-      }
+
+    const newLink = toLink(base64);
+    const newBase64 = toBase64(link);
+
+    if (newLink) {
+      window.location.href = newLink;
+    } else if (newBase64) {
+      text = window.location.origin + "/" + newBase64;
+    } else {
+      isError = true;
     }
-    error = ERROR;
   });
 </script>
 
-{#if error}
-  <p>{error}</p>
+{#if index}
+  <h2>Bookmarklet</h2>
+  <p>
+    If you want to easily create a URL redirect, drag<br />
+    <a
+      href={`javascript:(function()%7Bconst%20a=%22${window.origin}/?%22+window.location;window.open(a,%22_blank%22)%7D)();`}
+      >this</a
+    ><br />
+    to the bookmark toolbar
+  </p>
+
+  <h2>Create</h2>
+  <input type="text" bind:value={linkInput} placeholder="https://example.com" />
+{/if}
+
+{#if isError}
+  <p>Something is wrong...</p>
 {:else if text}
-  <a href={text}>{text}</a>
+  <a href={text}>{text}</a><br />
+  <button on:click={onCopy}>Copy to clipboard</button>
+  {#if isCopied}
+    <span>Copied</span>
+  {/if}
 {/if}
