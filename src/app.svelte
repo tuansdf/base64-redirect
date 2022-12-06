@@ -1,6 +1,6 @@
 <script>
   import { onMount } from "svelte";
-  import { toBase64, toLink } from "./utils";
+  import { decodeToLink, encodeLink } from "./utils";
 
   let index = false;
   let text = "";
@@ -15,8 +15,8 @@
   $: {
     clearTimeout(inputTimeout);
     inputTimeout = setTimeout(() => {
-      const base64 = toBase64(linkInput);
-      if (base64) text = window.location.origin + "/" + base64;
+      const encoded = encodeLink(linkInput);
+      if (encoded) text = window.location.origin + "/" + encoded;
     }, 200);
   }
 
@@ -36,16 +36,19 @@
       return;
     }
 
-    const newLink = toLink(base64);
-    const newBase64 = toBase64(link);
-
-    if (newLink) {
-      window.location.href = newLink;
-    } else if (newBase64) {
-      text = window.location.origin + "/" + newBase64;
-    } else {
-      isError = true;
+    const decoded = decodeToLink(base64);
+    if (decoded) {
+      window.location.href = decoded;
+      return;
     }
+
+    const encoded = encodeLink(link);
+    if (encoded) {
+      text = window.location.origin + "/" + encoded;
+      return;
+    }
+
+    isError = true;
   });
 </script>
 
